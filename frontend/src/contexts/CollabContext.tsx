@@ -49,7 +49,7 @@ type CollabContextType = {
   setCompilerResult: React.Dispatch<React.SetStateAction<CompilerResult[]>>;
   isEndSessionModalOpen: boolean;
   time: number;
-  resetCollab: () => void;
+  resetCollab: (time?: number) => void;
   isPartnerConnected: boolean;
 };
 
@@ -201,9 +201,9 @@ const CollabProvider: React.FC<{ children?: React.ReactNode }> = (props) => {
     });
   };
 
-  const resetCollab = () => {
+  const resetCollab = (time?: number) => {
     setCompilerResult([]);
-    setTime(0);
+    setTime(time || 0);
   };
 
   return (

@@ -89,8 +89,6 @@ const CollabSandbox: React.FC = () => {
   const appNavigate = useAppNavigate();
 
   useEffect(() => {
-    resetCollab();
-
     if (roomId) {
       localStorage.setItem("room", roomId);
     } else {
@@ -118,6 +116,7 @@ const CollabSandbox: React.FC = () => {
             language
           );
           if (editorState.ready) {
+            resetCollab();
             setEditorState(editorState);
             getQuestionById(questionId, dispatch);
             checkPartnerStatus(matchUser.id, editorState.doc);
@@ -135,10 +134,12 @@ const CollabSandbox: React.FC = () => {
     } else {
       const reconnectToCollabSession = async () => {
         try {
-          const { editorState, qnId, language } = await rejoin(
+          const { editorState, qnId, language, startTime } = await rejoin(
             matchUser.id,
             roomId
           );
+          const timeElapsed = Math.floor((Date.now() - startTime) / 1000) - 1;
+          resetCollab(timeElapsed);
           setEditorState(editorState);
           setLanguage(language);
           getQuestionById(qnId, dispatch);

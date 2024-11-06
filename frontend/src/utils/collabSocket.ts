@@ -73,6 +73,7 @@ export const rejoin = (
   editorState: CollabSessionData;
   qnId: string;
   language: string;
+  startTime: number;
 }> => {
   collabSocket.connect();
   initConnectionStatusListeners(roomId);
@@ -83,7 +84,7 @@ export const rejoin = (
   return new Promise((resolve) => {
     collabSocket.once(
       CollabEvents.REJOINED,
-      (questionId: string, language: string) => {
+      (questionId: string, language: string, startTime: number) => {
         resolve({
           editorState: {
             ready: true,
@@ -93,6 +94,7 @@ export const rejoin = (
           },
           qnId: questionId,
           language: language,
+          startTime: startTime,
         });
       }
     );

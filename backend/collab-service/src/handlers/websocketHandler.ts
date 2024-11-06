@@ -28,6 +28,7 @@ interface CollabSessionData {
   questionId: string;
   language: string;
   isPartnerReady: boolean;
+  startTime: number;
 }
 
 const EXPIRY_TIME = 3600;
@@ -76,8 +77,8 @@ export const handleWebsocketCollabEvents = (socket: Socket) => {
 
     // TODO: if no session data
     const sessionData = collabSessions.get(roomId)!;
-    const { questionId, language } = sessionData;
-    socket.emit(CollabEvents.REJOINED, questionId, language);
+    const { questionId, language, startTime } = sessionData;
+    socket.emit(CollabEvents.REJOINED, questionId, language, startTime);
   });
 
   socket.on(
@@ -205,6 +206,7 @@ const getDocument = (roomId: string, questionId: string, language: string) => {
       questionId: questionId,
       language: language,
       isPartnerReady: false,
+      startTime: Date.now(),
     });
   }
 
