@@ -35,7 +35,7 @@ import {
   SUCCESS_QUESTION_DELETE,
   USE_AUTH_ERROR_MESSAGE,
 } from "../../utils/constants";
-import useDebounce from "../../utils/debounce";
+import useDebounce from "../../hooks/useDebounce";
 import { blue, grey } from "@mui/material/colors";
 import { Add, Delete, Edit, MoreVert, Search } from "@mui/icons-material";
 import ConfirmationDialog from "../../components/ConfirmationDialog";
@@ -121,7 +121,7 @@ const QuestionList: React.FC = () => {
     if (state.questionCount % rowsPerPage !== 1 || page === 0) {
       updateQuestionList();
     } else {
-      setPage(page => page - 1);
+      setPage((page) => page - 1);
     }
   };
 

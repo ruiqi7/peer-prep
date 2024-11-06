@@ -66,7 +66,6 @@ const QuestionCodeTemplates: React.FC<QuestionCodeTemplatesProps> = ({
       event.target.selectionEnd = cursorPosition + 1;
     }
   };
-  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   return (
     <Box display="flex" flexDirection="column" marginTop={2}>

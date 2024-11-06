@@ -10,7 +10,6 @@ import {
   ERROR_INVALID_TEST_CASES_MESSAGE,
 } from "../utils/constants";
 import { questionService } from "../utils/questionApi";
-import { testCasesApi } from "../utils/testCasesApi";
 
 interface CompilerResult {
   status: string;
@@ -43,15 +42,6 @@ export const executeCode = async (req: Request, res: Response) => {
     const qnsResponse = await questionService.get(`/${questionId}`);
     const { inputs: stdinList, outputs: expectedResultList } =
       qnsResponse.data.question;
-
-    // Extract test cases from input and output files
-    // const testCases = await testCasesApi(
-    //   testcaseInputFileUrl,
-    //   testcaseOutputFileUrl
-    // );
-
-    // const stdinList: string[] = testCases.input;
-    // const expectedResultList: string[] = testCases.output;
 
     if (stdinList.length !== expectedResultList.length) {
       res.status(400).json({

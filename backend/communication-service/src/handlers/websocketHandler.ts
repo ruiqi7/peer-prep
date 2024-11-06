@@ -2,15 +2,13 @@ import { Socket } from "socket.io";
 import { CommunicationEvents, MessageTypes } from "../utils/types";
 import { BOT_NAME } from "../utils/constants";
 import { io } from "../server";
+import { connectUser, disconnectUser } from "./userConnectionHandler";
 
 export const handleWebsocketCommunicationEvents = (socket: Socket) => {
   socket.on(
     CommunicationEvents.JOIN,
     async ({ roomId, username }: { roomId: string; username: string }) => {
-      if (!roomId) {
-        return;
-      }
-
+      connectUser(username);
       const room = io.sockets.adapter.rooms.get(roomId);
       if (room?.has(socket.id)) {
         socket.emit(CommunicationEvents.ALREADY_JOINED);
@@ -55,10 +53,13 @@ export const handleWebsocketCommunicationEvents = (socket: Socket) => {
     }
   );
 
+  socket.on(CommunicationEvents.USER_DISCONNECT, () => {
+    disconnectUser(socket);
+  });
+
   socket.on(CommunicationEvents.DISCONNECT, () => {
     const { roomId } = socket.data;
     if (roomId) {
-      console.log("disconnected", roomId, socket.data.username);
       const createdTime = Date.now();
       socket.to(roomId).emit(CommunicationEvents.DISCONNECTED, {
         from: BOT_NAME,

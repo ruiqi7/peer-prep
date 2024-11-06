@@ -13,7 +13,7 @@ import {
 } from "../utils/constants";
 import { useAuth } from "./AuthContext";
 import { toast } from "react-toastify";
-import useAppNavigate from "../components/UseAppNavigate";
+import useAppNavigate from "../hooks/useAppNavigate";
 import { UNSAFE_NavigationContext } from "react-router-dom";
 import { Action, type History, type Transition } from "history";
 

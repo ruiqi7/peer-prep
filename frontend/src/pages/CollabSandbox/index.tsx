@@ -12,7 +12,7 @@ import {
   Tabs,
 } from "@mui/material";
 import classes from "./index.module.css";
-import { useCollab } from "../../contexts/CollabContext";
+import { CompilerResult, useCollab } from "../../contexts/CollabContext";
 import { useMatch } from "../../contexts/MatchContext";
 import {
   ABORT_COLLAB_SESSION_CONFIRMATION_MESSAGE,
@@ -63,10 +63,12 @@ const CollabSandbox: React.FC = () => {
   }
 
   const {
+    compilerResult,
     handleRejectEndSession,
     handleConfirmEndSession,
     checkPartnerStatus,
     isEndSessionModalOpen,
+    resetCollab,
   } = collab;
 
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -87,6 +89,8 @@ const CollabSandbox: React.FC = () => {
   const appNavigate = useAppNavigate();
 
   useEffect(() => {
+    resetCollab();
+
     if (roomId) {
       localStorage.setItem("room", roomId);
     } else {
@@ -189,7 +193,14 @@ const CollabSandbox: React.FC = () => {
     return <Navigate to="/home" replace />;
   }
 
-  if (!matchUser || !roomId || !language || !selectedQuestion || !editorState) {
+  if (
+    !matchUser ||
+    !roomId ||
+    !language ||
+    !selectedQuestion ||
+    !editorState ||
+    !compilerResult
+  ) {
     return <Loader />;
   }
 
@@ -327,12 +338,14 @@ const CollabSandbox: React.FC = () => {
                     </Button>
                   ))}
               </Box>
-              {/* display result of each test case in the output (result) and stdout (any print statements executed) */}
               <TestCase
                 input={selectedQuestion.inputs[selectedTestcase]}
-                output={""}
-                stdout={""}
-                result={selectedQuestion.outputs[selectedTestcase]}
+                expected={selectedQuestion.outputs[selectedTestcase]}
+                result={
+                  compilerResult.length > 0
+                    ? compilerResult[selectedTestcase]
+                    : ({} as CompilerResult)
+                }
               />
             </TabPanel>
             <TabPanel value={selectedTab} selected="chat">
