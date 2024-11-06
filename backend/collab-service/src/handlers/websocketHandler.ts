@@ -25,8 +25,9 @@ enum CollabEvents {
 
 interface CollabSessionData {
   doc: Doc;
-  questionId: string;
   language: string;
+  qnId: string;
+  qnHistoryId: string;
   isPartnerReady: boolean;
   startTime: number;
 }
@@ -40,7 +41,13 @@ const collabSessions = new Map<string, CollabSessionData>();
 export const handleWebsocketCollabEvents = (socket: Socket) => {
   socket.on(
     CollabEvents.JOIN,
-    (uid: string, roomId: string, questionId: string, language: string) => {
+    (
+      uid: string,
+      roomId: string,
+      language: string,
+      qnId: string,
+      qnHistoryId: string
+    ) => {
       const connectionKey = `${uid}:${roomId}`;
       if (userConnections.has(connectionKey)) {
         clearTimeout(userConnections.get(connectionKey)!);
@@ -61,7 +68,7 @@ export const handleWebsocketCollabEvents = (socket: Socket) => {
         io.sockets.adapter.rooms.get(roomId)?.size === 2 &&
         !collabSessions.has(roomId)
       ) {
-        createCollabSession(roomId, questionId, language);
+        createCollabSession(roomId, language, qnId, qnHistoryId);
         io.to(roomId).emit(CollabEvents.ROOM_READY, true);
       }
     }
@@ -77,8 +84,8 @@ export const handleWebsocketCollabEvents = (socket: Socket) => {
 
     // TODO: if no session data
     const sessionData = collabSessions.get(roomId)!;
-    const { questionId, language, startTime } = sessionData;
-    socket.emit(CollabEvents.REJOINED, questionId, language, startTime);
+    const { language, qnId, qnHistoryId, startTime } = sessionData;
+    socket.emit(CollabEvents.REJOINED, language, qnId, qnHistoryId, startTime);
   });
 
   socket.on(
@@ -158,8 +165,9 @@ export const handleWebsocketCollabEvents = (socket: Socket) => {
       const sessionData = JSON.parse(storeSessionData);
       const doc = getDocument(
         roomId,
-        sessionData.questionId,
-        sessionData.language
+        sessionData.language,
+        sessionData.qnId,
+        sessionData.qnHistoryId
       );
 
       const tempDoc = new Doc();
@@ -178,10 +186,11 @@ export const handleWebsocketCollabEvents = (socket: Socket) => {
 
 const createCollabSession = (
   roomId: string,
-  questionId: string,
-  language: string
+  language: string,
+  qnId: string,
+  qnHistoryId: string
 ) => {
-  getDocument(roomId, questionId, language);
+  getDocument(roomId, language, qnId, qnHistoryId);
 };
 
 const removeCollabSession = (roomId: string) => {
@@ -189,7 +198,12 @@ const removeCollabSession = (roomId: string) => {
   collabSessions.delete(roomId);
 };
 
-const getDocument = (roomId: string, questionId: string, language: string) => {
+const getDocument = (
+  roomId: string,
+  language: string,
+  qnId: string,
+  qnHistoryId: string
+) => {
   const sessionData = collabSessions.get(roomId);
   let doc: Doc;
 
@@ -198,13 +212,14 @@ const getDocument = (roomId: string, questionId: string, language: string) => {
   } else {
     doc = new Doc();
     doc.on(CollabEvents.UPDATE, () => {
-      saveSessionData(roomId, doc, questionId, language);
+      saveSessionData(roomId, doc, language, qnId, qnHistoryId);
       io.to(roomId).emit(CollabEvents.UPDATE, encodeStateAsUpdateV2(doc!));
     });
     collabSessions.set(roomId, {
       doc: doc,
-      questionId: questionId,
       language: language,
+      qnId: qnId,
+      qnHistoryId: qnHistoryId,
       isPartnerReady: false,
       startTime: Date.now(),
     });
@@ -216,15 +231,17 @@ const getDocument = (roomId: string, questionId: string, language: string) => {
 const saveSessionData = async (
   roomId: string,
   doc: Doc,
-  questionId: string,
-  language: string
+  language: string,
+  qnId: string,
+  qnHistoryId: string
 ) => {
   const docState = encodeStateAsUpdateV2(doc);
   const docAsString = Buffer.from(docState).toString("base64");
   const sessionDataAsJson = JSON.stringify({
     doc: docAsString,
-    questionId: questionId,
     language: language,
+    qnId: qnId,
+    qnHistoryId: qnHistoryId,
   });
   await redisClient.set(`collaboration:${roomId}`, sessionDataAsJson, {
     EX: EXPIRY_TIME,

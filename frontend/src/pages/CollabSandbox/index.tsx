@@ -55,6 +55,8 @@ const CollabSandbox: React.FC = () => {
     matchCriteria,
     // loading,
     questionId,
+    qnHistoryId,
+    setQnHistoryId,
   } = match;
 
   const collab = useCollab();
@@ -106,14 +108,15 @@ const CollabSandbox: React.FC = () => {
       return;
     }
 
-    if (questionId && language) {
+    if (language && questionId && qnHistoryId) {
       const connectToCollabSession = async () => {
         try {
           const editorState = await join(
             matchUser.id,
             roomId,
+            language,
             questionId,
-            language
+            qnHistoryId
           );
           if (editorState.ready) {
             resetCollab();
@@ -134,14 +137,13 @@ const CollabSandbox: React.FC = () => {
     } else {
       const reconnectToCollabSession = async () => {
         try {
-          const { editorState, qnId, language, startTime } = await rejoin(
-            matchUser.id,
-            roomId
-          );
+          const { editorState, language, qnId, qnHistoryId, startTime } =
+            await rejoin(matchUser.id, roomId);
           const timeElapsed = Math.floor((Date.now() - startTime) / 1000) - 1;
           resetCollab(timeElapsed);
           setEditorState(editorState);
           setLanguage(language);
+          setQnHistoryId(qnHistoryId);
           getQuestionById(qnId, dispatch);
           checkPartnerStatus(matchUser.id, editorState.doc);
         } catch {
@@ -198,6 +200,7 @@ const CollabSandbox: React.FC = () => {
     !matchUser ||
     !roomId ||
     !language ||
+    !qnHistoryId ||
     !selectedQuestion ||
     !editorState ||
     !compilerResult
@@ -294,7 +297,7 @@ const CollabSandbox: React.FC = () => {
                   : ""
               }
               roomId={roomId}
-              isRejoin={!questionId || !language}
+              isRejoin={!questionId}
             />
           </Box>
           <Box

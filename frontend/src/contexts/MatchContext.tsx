@@ -90,6 +90,7 @@ type MatchContextType = {
   loading: boolean;
   questionId: string | null;
   qnHistoryId: string | null;
+  setQnHistoryId: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
 const requestTimeoutDuration = 5000;
@@ -518,6 +519,7 @@ const MatchProvider: React.FC<{ children?: React.ReactNode }> = (props) => {
         loading,
         questionId,
         qnHistoryId,
+        setQnHistoryId,
       }}
     >
       {children}

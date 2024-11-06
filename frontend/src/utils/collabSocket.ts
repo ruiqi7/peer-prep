@@ -50,14 +50,22 @@ let awareness: Awareness;
 export const join = (
   uid: string,
   roomId: string,
-  questionId: string,
-  language: string
+  language: string,
+  qnId: string,
+  qnHistoryId: string
 ): Promise<CollabSessionData> => {
   collabSocket.connect();
   initConnectionStatusListeners(roomId);
   initDocListener(uid, roomId);
 
-  collabSocket.emit(CollabEvents.JOIN, uid, roomId, questionId, language);
+  collabSocket.emit(
+    CollabEvents.JOIN,
+    uid,
+    roomId,
+    language,
+    qnId,
+    qnHistoryId
+  );
 
   return new Promise((resolve) => {
     collabSocket.once(CollabEvents.ROOM_READY, (ready: boolean) => {
@@ -71,8 +79,9 @@ export const rejoin = (
   roomId: string
 ): Promise<{
   editorState: CollabSessionData;
-  qnId: string;
   language: string;
+  qnId: string;
+  qnHistoryId: string;
   startTime: number;
 }> => {
   collabSocket.connect();
@@ -84,7 +93,12 @@ export const rejoin = (
   return new Promise((resolve) => {
     collabSocket.once(
       CollabEvents.REJOINED,
-      (questionId: string, language: string, startTime: number) => {
+      (
+        language: string,
+        qnId: string,
+        qnHistoryId: string,
+        startTime: number
+      ) => {
         resolve({
           editorState: {
             ready: true,
@@ -92,8 +106,9 @@ export const rejoin = (
             text: text,
             awareness: awareness,
           },
-          qnId: questionId,
           language: language,
+          qnId: qnId,
+          qnHistoryId: qnHistoryId,
           startTime: startTime,
         });
       }

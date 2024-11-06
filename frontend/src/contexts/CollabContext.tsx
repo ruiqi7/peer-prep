@@ -148,7 +148,7 @@ const CollabProvider: React.FC<{ children?: React.ReactNode }> = (props) => {
   const handleConfirmEndSession = async () => {
     setIsEndSessionModalOpen(false);
 
-    // Get queston history
+    // Get question history
     const data = await qnHistoryClient.get(qnHistoryId as string);
 
     // Only update question history if it has not been submitted before
