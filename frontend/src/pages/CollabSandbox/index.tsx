@@ -46,10 +46,9 @@ const CollabSandbox: React.FC = () => {
   }
 
   const {
-    verifyMatchStatus,
+    // verifyMatchStatus,
     getMatchId,
     matchUser,
-    partner,
     matchCriteria,
     loading,
     questionId,
@@ -73,7 +72,8 @@ const CollabSandbox: React.FC = () => {
   const [selectedTestcase, setSelectedTestcase] = useState(0);
 
   useEffect(() => {
-    verifyMatchStatus();
+    // TODO: Retain session on page refresh
+    // verifyMatchStatus();
 
     if (!questionId) {
       return;
@@ -103,7 +103,14 @@ const CollabSandbox: React.FC = () => {
 
     connectToCollabSession();
 
-    return () => leave(matchUser.id, matchId);
+    // handle page refresh / tab closure
+    const handleUnload = () => leave(matchUser.id, matchId);
+    window.addEventListener("unload", handleUnload);
+
+    return () => {
+      leave(matchUser.id, matchId);
+      window.removeEventListener("unload", handleUnload);
+    };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -112,13 +119,7 @@ const CollabSandbox: React.FC = () => {
     return <Loader />;
   }
 
-  if (
-    !matchUser ||
-    !partner ||
-    !matchCriteria ||
-    !getMatchId() ||
-    !isConnecting
-  ) {
+  if (!matchUser || !matchCriteria || !getMatchId() || !isConnecting) {
     return <Navigate to="/home" replace />;
   }
 
