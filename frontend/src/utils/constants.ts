@@ -103,6 +103,10 @@ export const QUESTION_DOES_NOT_EXIST_ERROR =
 // Collab
 export const COLLAB_ENDED_MESSAGE =
   "Your partner has left the collaboration session.";
+export const COLLAB_PARTNER_DISCONNECTED_MESSAGE =
+  "Your partner has disconnected from the collaboration session! You won't be able to make edits until they rejoin.";
+export const COLLAB_PARTNER_RECONNECTED_MESSAGE =
+  "Your partner has reconnected!";
 export const COLLAB_CONNECTION_ERROR =
   "Error connecting you to the collaboration session! Please try again.";
 
@@ -122,6 +126,10 @@ export const ABORT_CREATE_OR_EDIT_QUESTION_CONFIRMATION_MESSAGE =
 // Match
 export const ABORT_MATCH_PROCESS_CONFIRMATION_MESSAGE =
   "Are you sure you want to leave the matching process?";
+
+// Collab
+export const ABORT_COLLAB_SESSION_CONFIRMATION_MESSAGE =
+  "Are you sure you want to leave the collaboration session?";
 
 /* Image paths */
 export const FIND_MATCH_FORM_PATH = "/find_match_form.png";

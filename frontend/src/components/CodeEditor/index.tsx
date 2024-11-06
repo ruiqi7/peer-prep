@@ -21,6 +21,7 @@ interface CodeEditorProps {
   template?: string;
   roomId?: string;
   isReadOnly?: boolean;
+  isRejoin?: boolean;
 }
 
 const languageSupport = {
@@ -38,6 +39,7 @@ const CodeEditor: React.FC<CodeEditorProps> = (props) => {
     template = "",
     roomId = "",
     isReadOnly = false,
+    isRejoin = false,
   } = props;
 
   const collab = useCollab();
@@ -45,7 +47,7 @@ const CodeEditor: React.FC<CodeEditorProps> = (props) => {
     throw new Error(USE_COLLAB_ERROR_MESSAGE);
   }
 
-  const { setCode } = collab;
+  const { setCode, isPartnerConnected } = collab;
 
   const [isEditorReady, setIsEditorReady] = useState<boolean>(false);
   const [isDocumentLoaded, setIsDocumentLoaded] = useState<boolean>(false);
@@ -65,13 +67,22 @@ const CodeEditor: React.FC<CodeEditorProps> = (props) => {
       return;
     }
 
+    if (!uid || !roomId) {
+      console.error("Missing user ID and / or room ID");
+      return;
+    }
+
     const loadTemplate = async () => {
-      await initDocument(uid, roomId, template);
+      await initDocument(uid, roomId, template, isRejoin);
       setIsDocumentLoaded(true);
     };
     loadTemplate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReadOnly, isEditorReady]);
+
+  if (!isReadOnly && !(uid && roomId)) {
+    return <></>;
+  }
 
   return (
     <CodeMirror
@@ -93,8 +104,12 @@ const CodeEditor: React.FC<CodeEditorProps> = (props) => {
             ]
           : []),
         EditorView.lineWrapping,
-        EditorView.editable.of(!isReadOnly && isDocumentLoaded),
-        EditorState.readOnly.of(isReadOnly || !isDocumentLoaded),
+        EditorView.editable.of(
+          !isReadOnly && isDocumentLoaded && isPartnerConnected
+        ),
+        EditorState.readOnly.of(
+          isReadOnly || !isDocumentLoaded || !isPartnerConnected
+        ),
       ]}
       value={isReadOnly ? template : undefined}
       placeholder={

@@ -15,31 +15,34 @@ import classes from "./index.module.css";
 import { useCollab } from "../../contexts/CollabContext";
 import { useMatch } from "../../contexts/MatchContext";
 import {
+  ABORT_COLLAB_SESSION_CONFIRMATION_MESSAGE,
   COLLAB_CONNECTION_ERROR,
   USE_COLLAB_ERROR_MESSAGE,
   USE_MATCH_ERROR_MESSAGE,
 } from "../../utils/constants";
-import { useEffect, useReducer, useState } from "react";
+import { useContext, useEffect, useReducer, useState } from "react";
 import Loader from "../../components/Loader";
 import reducer, {
   getQuestionById,
   initialState,
 } from "../../reducers/questionReducer";
 import QuestionDetailComponent from "../../components/QuestionDetail";
-import { Navigate } from "react-router-dom";
+import { Navigate, UNSAFE_NavigationContext } from "react-router-dom";
+import { Action, type History, type Transition } from "history";
 import Chat from "../../components/Chat";
 import TabPanel from "../../components/TabPanel";
 import TestCase from "../../components/TestCase";
 import CodeEditor from "../../components/CodeEditor";
-import { CollabSessionData, join, leave } from "../../utils/collabSocket";
+import {
+  CollabSessionData,
+  join,
+  leave,
+  rejoin,
+} from "../../utils/collabSocket";
 import { toast } from "react-toastify";
+import useAppNavigate from "../../components/UseAppNavigate";
 
 const CollabSandbox: React.FC = () => {
-  const [editorState, setEditorState] = useState<CollabSessionData | null>(
-    null
-  );
-  const [isConnecting, setIsConnecting] = useState<boolean>(true);
-
   const match = useMatch();
   if (!match) {
     throw new Error(USE_MATCH_ERROR_MESSAGE);
@@ -50,7 +53,7 @@ const CollabSandbox: React.FC = () => {
     getMatchId,
     matchUser,
     matchCriteria,
-    loading,
+    // loading,
     questionId,
   } = match;
 
@@ -71,59 +74,122 @@ const CollabSandbox: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState<"tests" | "chat">("tests");
   const [selectedTestcase, setSelectedTestcase] = useState(0);
 
+  const [editorState, setEditorState] = useState<CollabSessionData | null>(
+    null
+  );
+  const [isConnecting, setIsConnecting] = useState<boolean>(true);
+  const [roomId, setRoomId] = useState<string | null>(getMatchId());
+  const [language, setLanguage] = useState<string | null>(
+    matchCriteria?.language || null
+  );
+
+  const navigator = useContext(UNSAFE_NavigationContext).navigator as History;
+  const appNavigate = useAppNavigate();
+
   useEffect(() => {
-    // TODO: Retain session on page refresh
-    // verifyMatchStatus();
-
-    if (!questionId) {
-      return;
-    }
-    getQuestionById(questionId, dispatch);
-
-    const matchId = getMatchId();
-    if (!matchUser || !matchId) {
-      return;
-    }
-
-    const connectToCollabSession = async () => {
-      try {
-        const editorState = await join(matchUser.id, matchId);
-        if (editorState.ready) {
-          setEditorState(editorState);
-          checkPartnerStatus();
-        } else {
-          toast.error(COLLAB_CONNECTION_ERROR);
-          setIsConnecting(false);
-        }
-      } catch (error) {
+    if (roomId) {
+      localStorage.setItem("room", roomId);
+    } else {
+      const storedRoomId = localStorage.getItem("room");
+      setRoomId(storedRoomId);
+      if (!storedRoomId) {
         toast.error(COLLAB_CONNECTION_ERROR);
         setIsConnecting(false);
       }
+    }
+  }, [roomId]);
+
+  useEffect(() => {
+    if (!matchUser || !roomId) {
+      return;
+    }
+
+    if (questionId && language) {
+      const connectToCollabSession = async () => {
+        try {
+          const editorState = await join(
+            matchUser.id,
+            roomId,
+            questionId,
+            language
+          );
+          if (editorState.ready) {
+            setEditorState(editorState);
+            getQuestionById(questionId, dispatch);
+            checkPartnerStatus(matchUser.id, editorState.doc);
+          } else {
+            toast.error(COLLAB_CONNECTION_ERROR);
+            setIsConnecting(false);
+          }
+        } catch {
+          toast.error(COLLAB_CONNECTION_ERROR);
+          setIsConnecting(false);
+        }
+      };
+
+      connectToCollabSession();
+    } else {
+      const reconnectToCollabSession = async () => {
+        try {
+          const { editorState, qnId, language } = await rejoin(
+            matchUser.id,
+            roomId
+          );
+          setEditorState(editorState);
+          setLanguage(language);
+          getQuestionById(qnId, dispatch);
+          checkPartnerStatus(matchUser.id, editorState.doc);
+        } catch {
+          toast.error(COLLAB_CONNECTION_ERROR);
+          setIsConnecting(false);
+        }
+      };
+
+      reconnectToCollabSession();
+    }
+
+    // handle page leave (navigate away)
+    const unblock = navigator.block((transition: Transition) => {
+      if (
+        transition.action === Action.Replace ||
+        confirm(ABORT_COLLAB_SESSION_CONFIRMATION_MESSAGE)
+      ) {
+        leave(matchUser.id, roomId, true);
+        unblock();
+        appNavigate(transition.location.pathname);
+      }
+    });
+
+    // handle tab closure / url change
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = ABORT_COLLAB_SESSION_CONFIRMATION_MESSAGE; // for legacy support, does not actually display message
     };
 
-    connectToCollabSession();
-
     // handle page refresh / tab closure
-    const handleUnload = () => leave(matchUser.id, matchId);
+    const handleUnload = () => leave(matchUser.id, roomId);
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
     window.addEventListener("unload", handleUnload);
 
     return () => {
-      leave(matchUser.id, matchId);
+      leave(matchUser.id, roomId);
+      unblock();
+      window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("unload", handleUnload);
     };
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [matchUser, roomId]);
 
-  if (loading) {
-    return <Loader />;
-  }
+  // if (loading) {
+  //   return <Loader />;
+  // }
 
-  if (!matchUser || !matchCriteria || !getMatchId() || !isConnecting) {
+  if (!isConnecting) {
     return <Navigate to="/home" replace />;
   }
 
-  if (!selectedQuestion || !editorState) {
+  if (!matchUser || !roomId || !language || !selectedQuestion || !editorState) {
     return <Loader />;
   }
 
@@ -205,17 +271,18 @@ const CollabSandbox: React.FC = () => {
               editorState={editorState}
               uid={matchUser.id}
               username={matchUser.username}
-              language={matchCriteria.language}
+              language={language}
               template={
-                matchCriteria.language === "Python"
+                language === "Python"
                   ? selectedQuestion.pythonTemplate
-                  : matchCriteria.language === "Java"
+                  : language === "Java"
                   ? selectedQuestion.javaTemplate
-                  : matchCriteria.language === "C"
+                  : language === "C"
                   ? selectedQuestion.cTemplate
                   : ""
               }
-              roomId={getMatchId()!}
+              roomId={roomId}
+              isRejoin={!questionId || !language}
             />
           </Box>
           <Box

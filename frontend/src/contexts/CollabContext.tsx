@@ -7,6 +7,8 @@ import {
   SUCCESS_TESTCASE_MESSAGE,
   FAILED_TO_SUBMIT_CODE_MESSAGE,
   COLLAB_ENDED_MESSAGE,
+  COLLAB_PARTNER_DISCONNECTED_MESSAGE,
+  COLLAB_PARTNER_RECONNECTED_MESSAGE,
 } from "../utils/constants";
 import { toast } from "react-toastify";
 
@@ -18,6 +20,7 @@ import qnHistoryReducer, { initialQHState } from "../reducers/qnHistoryReducer";
 import { CollabEvents, collabSocket, leave } from "../utils/collabSocket";
 import { communicationSocket } from "../utils/communicationSocket";
 import useAppNavigate from "../components/UseAppNavigate";
+import { applyUpdateV2, Doc } from "yjs";
 
 type CompilerResult = {
   status: string;
@@ -36,10 +39,11 @@ type CollabContextType = {
   handleEndSessionClick: () => void;
   handleRejectEndSession: () => void;
   handleConfirmEndSession: () => void;
-  checkPartnerStatus: () => void;
+  checkPartnerStatus: (uid: string, doc: Doc) => void;
   setCode: React.Dispatch<React.SetStateAction<string>>;
   compilerResult: CompilerResult[];
   isEndSessionModalOpen: boolean;
+  isPartnerConnected: boolean;
 };
 
 const CollabContext = createContext<CollabContextType | null>(null);
@@ -55,10 +59,10 @@ const CollabProvider: React.FC<{ children?: React.ReactNode }> = (props) => {
   }
 
   const {
-    matchUser,
-    partner,
+    // matchUser,
+    // partner,
     matchCriteria,
-    getMatchId,
+    // getMatchId,
     stopMatch,
     questionId,
     qnHistoryId,
@@ -73,6 +77,7 @@ const CollabProvider: React.FC<{ children?: React.ReactNode }> = (props) => {
   const [compilerResult, setCompilerResult] = useState<CompilerResult[]>([]);
   const [isEndSessionModalOpen, setIsEndSessionModalOpen] =
     useState<boolean>(false);
+  const [isPartnerConnected, setIsPartnerConnected] = useState<boolean>(true);
 
   const handleSubmitSessionClick = async (time: number) => {
     try {
@@ -126,8 +131,8 @@ const CollabProvider: React.FC<{ children?: React.ReactNode }> = (props) => {
     setIsEndSessionModalOpen(false);
 
     // Leave collaboration room
-    leave(matchUser?.id as string, getMatchId() as string, true);
-    leave(partner?.id as string, getMatchId() as string, true);
+    // leave(matchUser?.id as string, getMatchId() as string, true);
+    // leave(partner?.id as string, getMatchId() as string, true);
 
     communicationSocket.disconnect();
 
@@ -136,12 +141,24 @@ const CollabProvider: React.FC<{ children?: React.ReactNode }> = (props) => {
     appNavigate("/home");
   };
 
-  const checkPartnerStatus = () => {
+  const checkPartnerStatus = (uid: string, doc: Doc) => {
     collabSocket.on(CollabEvents.PARTNER_LEFT, () => {
       toast.error(COLLAB_ENDED_MESSAGE);
       setIsEndSessionModalOpen(false);
+      // TODO
       stopMatch();
       appNavigate("/home");
+    });
+
+    collabSocket.on(CollabEvents.PARTNER_DISCONNECTED, () => {
+      toast.error(COLLAB_PARTNER_DISCONNECTED_MESSAGE);
+      setIsPartnerConnected(false);
+
+      collabSocket.once(CollabEvents.UPDATE, (update) => {
+        applyUpdateV2(doc, new Uint8Array(update), uid);
+        toast.success(COLLAB_PARTNER_RECONNECTED_MESSAGE);
+        setIsPartnerConnected(true);
+      });
     });
   };
 
@@ -156,6 +173,7 @@ const CollabProvider: React.FC<{ children?: React.ReactNode }> = (props) => {
         setCode,
         compilerResult,
         isEndSessionModalOpen,
+        isPartnerConnected,
       }}
     >
       {children}

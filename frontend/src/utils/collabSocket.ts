@@ -7,6 +7,7 @@ import { Awareness } from "y-protocols/awareness";
 export enum CollabEvents {
   // Send
   JOIN = "join",
+  REJOIN = "rejoin",
   LEAVE = "leave",
   INIT_DOCUMENT = "init_document",
   UPDATE_REQUEST = "update_request",
@@ -15,10 +16,11 @@ export enum CollabEvents {
 
   // Receive
   ROOM_READY = "room_ready",
-  DOCUMENT_READY = "document_ready",
   UPDATE = "updateV2",
   UPDATE_CURSOR = "update_cursor",
   PARTNER_LEFT = "partner_left",
+  PARTNER_DISCONNECTED = "partner_disconnected",
+  REJOINED = "rejoined",
   SOCKET_DISCONNECT = "disconnect",
   SOCKET_CLIENT_DISCONNECT = "io client disconnect",
   SOCKET_SERVER_DISCONNECT = "io server disconnect",
@@ -28,8 +30,11 @@ export enum CollabEvents {
 
 export type CollabSessionData = {
   ready: boolean;
+  doc: Doc;
   text: Text;
   awareness: Awareness;
+  roomId?: string;
+  qnId?: string;
 };
 
 const COLLAB_SOCKET_URL = "http://localhost:3003";
@@ -44,40 +49,70 @@ let awareness: Awareness;
 
 export const join = (
   uid: string,
-  roomId: string
+  roomId: string,
+  questionId: string,
+  language: string
 ): Promise<CollabSessionData> => {
   collabSocket.connect();
   initConnectionStatusListeners(roomId);
+  initDocListener(uid, roomId);
 
-  doc = new Doc();
-  text = doc.getText();
-  awareness = new Awareness(doc);
-
-  doc.on(CollabEvents.UPDATE, (update, origin) => {
-    if (origin != uid) {
-      collabSocket.emit(CollabEvents.UPDATE_REQUEST, roomId, update);
-    }
-  });
-
-  collabSocket.on(CollabEvents.UPDATE, (update) => {
-    applyUpdateV2(doc, new Uint8Array(update), uid);
-  });
-
-  collabSocket.emit(CollabEvents.JOIN, uid, roomId);
+  collabSocket.emit(CollabEvents.JOIN, uid, roomId, questionId, language);
 
   return new Promise((resolve) => {
     collabSocket.once(CollabEvents.ROOM_READY, (ready: boolean) => {
-      resolve({ ready: ready, text: text, awareness: awareness });
+      resolve({ ready: ready, doc: doc, text: text, awareness: awareness });
     });
   });
 };
 
-export const initDocument = (uid: string, roomId: string, template: string) => {
-  collabSocket.emit(CollabEvents.INIT_DOCUMENT, roomId, template);
+export const rejoin = (
+  uid: string,
+  roomId: string
+): Promise<{
+  editorState: CollabSessionData;
+  qnId: string;
+  language: string;
+}> => {
+  collabSocket.connect();
+  initConnectionStatusListeners(roomId);
+  initDocListener(uid, roomId);
+
+  collabSocket.emit(CollabEvents.REJOIN, uid, roomId);
+
+  return new Promise((resolve) => {
+    collabSocket.once(
+      CollabEvents.REJOINED,
+      (questionId: string, language: string) => {
+        resolve({
+          editorState: {
+            ready: true,
+            doc: doc,
+            text: text,
+            awareness: awareness,
+          },
+          qnId: questionId,
+          language: language,
+        });
+      }
+    );
+  });
+};
+
+export const initDocument = (
+  uid: string,
+  roomId: string,
+  template: string,
+  isRejoin: boolean
+) => {
+  collabSocket.emit(CollabEvents.INIT_DOCUMENT, roomId, template, isRejoin);
 
   return new Promise<void>((resolve) => {
     collabSocket.once(CollabEvents.UPDATE, (update) => {
       applyUpdateV2(doc, new Uint8Array(update), uid);
+      if (isRejoin) {
+        console.log("received first update on rejoin");
+      }
       resolve();
     });
   });
@@ -88,7 +123,14 @@ export const leave = (uid: string, roomId: string, isImmediate?: boolean) => {
   collabSocket.io.removeListener(CollabEvents.SOCKET_RECONNECT_SUCCESS);
   collabSocket.io.removeListener(CollabEvents.SOCKET_RECONNECT_FAILED);
   collabSocket.emit(CollabEvents.LEAVE, uid, roomId, isImmediate);
-  doc.destroy();
+
+  if (doc) {
+    doc.destroy();
+  }
+
+  if (isImmediate) {
+    localStorage.removeItem("room");
+  }
 };
 
 export const sendCursorUpdate = (roomId: string, cursor: Cursor) => {
@@ -109,6 +151,22 @@ export const receiveCursorUpdate = (view: EditorView) => {
 
 export const reconnectRequest = (roomId: string) => {
   collabSocket.emit(CollabEvents.RECONNECT_REQUEST, roomId);
+};
+
+const initDocListener = (uid: string, roomId: string) => {
+  doc = new Doc();
+  text = doc.getText();
+  awareness = new Awareness(doc);
+
+  doc.on(CollabEvents.UPDATE, (update, origin) => {
+    if (origin != uid) {
+      collabSocket.emit(CollabEvents.UPDATE_REQUEST, roomId, update);
+    }
+  });
+
+  collabSocket.on(CollabEvents.UPDATE, (update) => {
+    applyUpdateV2(doc, new Uint8Array(update), uid);
+  });
 };
 
 const initConnectionStatusListeners = (roomId: string) => {

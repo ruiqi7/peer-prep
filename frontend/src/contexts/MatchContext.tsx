@@ -147,6 +147,10 @@ const MatchProvider: React.FC<{ children?: React.ReactNode }> = (props) => {
     openSocketConnection();
     matchSocket.emit(MatchEvents.USER_CONNECTED, matchUser?.id);
 
+    if (location.pathname === MatchPaths.COLLAB) {
+      return;
+    }
+
     const unblock = navigator.block((transition: Transition) => {
       if (
         transition.action === Action.Replace ||
@@ -171,6 +175,7 @@ const MatchProvider: React.FC<{ children?: React.ReactNode }> = (props) => {
 
     return () => {
       closeSocketConnection();
+      unblock();
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("unload", handleUnload);
     };
