@@ -188,6 +188,22 @@ const CollabProvider: React.FC<{ children?: React.ReactNode }> = (props) => {
       stopMatch();
       appNavigate("/home");
     });
+
+    collabSocket.on(CollabEvents.PARTNER_DISCONNECTED, () => {
+      toast.error(COLLAB_PARTNER_DISCONNECTED_MESSAGE);
+      setIsPartnerConnected(false);
+
+      collabSocket.once(CollabEvents.UPDATE, (update) => {
+        applyUpdateV2(doc, new Uint8Array(update), uid);
+        toast.success(COLLAB_PARTNER_RECONNECTED_MESSAGE);
+        setIsPartnerConnected(true);
+      });
+    });
+  };
+
+  const resetCollab = () => {
+    setCompilerResult([]);
+    setTime(0);
   };
 
   return (

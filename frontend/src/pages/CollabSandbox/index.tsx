@@ -40,7 +40,7 @@ import {
   rejoin,
 } from "../../utils/collabSocket";
 import { toast } from "react-toastify";
-import useAppNavigate from "../../components/UseAppNavigate";
+import useAppNavigate from "../../hooks/useAppNavigate";
 
 const CollabSandbox: React.FC = () => {
   const match = useMatch();
